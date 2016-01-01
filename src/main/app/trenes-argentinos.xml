@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
-	xmlns:spring="http://www.springframework.org/schema/beans" version="EE-3.7.0"
+<mule xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
 http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
@@ -9,29 +9,62 @@ http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/htt
 http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
     <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
     <http:request-config name="HTTP_Request_Configuration" host="trenes.mininterior.gov.ar" port="80" basePath="/v2_pg/lcd_public/" doc:name="HTTP Request Configuration"/>
+    <http:request-config name="HTTP_Request_Configuration1" host="trenes.mininterior.gov.ar" port="80" basePath="/v2_pg/lcd_public/" doc:name="HTTP Request Configuration">
+        <http:raml-api-configuration location="TrenesArgentinos/api.raml"/>
+    </http:request-config>
+    <flow name="trenes-argentinosFlow1">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/san-martin/" doc:name="HTTP"/>
+        <set-variable variableName="sentido" value="#[[ida: 31, vuelta: 32]]" doc:name="Variable"/>
+    </flow>
     <flow name="trenes-argentinosFlow">
         <http:listener config-ref="HTTP_Listener_Configuration" path="/test" doc:name="HTTP"/>
+        <dw:transform-message metadata:id="300ef88f-b905-4894-b467-6484bf022efc" doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+%var estacion={
+	retiro:1,
+	palermo:2,
+	chacarita:3,
+	paternal:4,
+	villaDelParque:5,
+	devoto:6,
+	saenzPena:7,
+	santosLugares:8,
+	caseros:9,
+	elPalomar:10,
+	hurlinghan:11
+}
+%var sentido={
+	retiro:32,
+	pilar:31,
+	jcpaz:31,
+	cabred:31
+}
+---
+{
+	estacion: estacion[inboundProperties."http.query.params"."estacion"],
+	sentido: sentido[inboundProperties."http.query.params"."sentido"]
+}]]></dw:set-payload>
+        </dw:transform-message>
         <http:request config-ref="HTTP_Request_Configuration" path="/ajax_get_datos_formaciones.php" method="GET" doc:name="HTTP">
             <http:request-builder>
-                <http:query-param paramName="ramal" value="${sentidoRetiro}"/>
-                <http:query-param paramName="estacion" value="15"/>
+                <http:query-param paramName="ramal" value="#[payload.sentido]"/>
+                <http:query-param paramName="estacion" value="#[payload.estacion]"/>
                 <http:query-param paramName="cartel" value="1"/>
                 <http:query-param paramName="key" value="v#v#QTUtWp#MpWRy80Q0knTE10I30kj#FNyZ"/>
             </http:request-builder>
         </http:request>
         <byte-array-to-string-transformer mimeType="application/json" doc:name="Byte Array to String"/>
-        <dw:transform-message doc:name="Transform Message">
+        <dw:transform-message doc:name="Transform Message" metadata:id="832ec46b-ab57-40a9-b187-d761fa4592b1">
             <dw:input-payload doc:sample="unknown.dwl"/>
             <dw:set-payload><![CDATA[%dw 1.0
-%output application/java
+%output application/json
 ---
 {
-	tren1: payload.items.demora_formacion_1,
-	tren2: payload.items.demora_formacion_2,
-	tren3: payload.items.demora_formacion_3
+	sentido: payload.items.alerta.sentido,
+	trenes: [payload.items.demora_formacion_1,payload.items.demora_formacion_2, payload.items.demora_formacion_3] filter ((demora) -> demora > 0)
 }]]></dw:set-payload>
         </dw:transform-message>
-        <set-payload value="#['Proximo tren: '+payload.tren1 + 'min Siguiente: ' + payload.tren2 + 'min Subsiguiente: ' + payload.tren3 + 'min']" doc:name="Set Payload"/>
-        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+
     </flow>
 </mule>

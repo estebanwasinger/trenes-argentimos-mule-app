@@ -1,0 +1,36 @@
+#%RAML 0.8
+title: TrenesArgentinos API
+version: v1
+baseUri: http://trenes.mininterior.gov.ar/v2_pg/lcd_public/
+traits:
+  - secured:
+      description: Key required to send request
+      queryParameters:
+        key:
+          description: Access Key
+          type: string
+          example: "v#v#QTUtWp#MpWRy80Q0knTE10I30kj#FNyZ"
+          required: true
+
+
+/ajax_get_datos_formaciones.php:
+  get:
+    is: [ secured ]
+    queryParameters:
+      ramal:
+        required: true
+        example: 31
+      estacion:
+        required: true
+        example: 2
+      cartel:
+        required: true
+        default: 1
+        example: 1
+        displayName: Cartel
+        description: This represent the number of the TV used in the station. Not all stations contains more than one TV.
+    responses:
+      200:
+        body:
+          application/json:
+            example: !include examples/response-example.json
